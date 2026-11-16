@@ -1005,10 +1005,7 @@
   }
   .la-role{
     justify-self:start;white-space:nowrap;
-    /* --ink-faint(#5c6784) 压在玻璃面板(#14192a) 上只有 3.06:1，
-       10.5px 的字在缩略图旁边基本靠猜。提到 5.5:1，
-       仍然是"比正文弱一档"的灰蓝，不喧宾夺主。 */
-    font-size:10.5px;letter-spacing:.04em;color:rgba(150,168,196,.85);
+    font-size:10.5px;letter-spacing:.04em;color:var(--ink-faint);
     border:1px solid var(--line);border-radius:999px;padding:1px 7px;
   }
   .la-player{flex:1;height:32px;min-width:0}
@@ -1068,15 +1065,7 @@ body.panel-open #globe-stage{
   padding:14px 26px;
   pointer-events:none;              /* 只有子元素可点，不挡地球拖拽 */
 }
-#topbar > *{pointer-events:auto;position:relative;z-index:1}
-/* 顶部压一层从深空色到透明的渐变。
-   品牌字本身有投影，但转到极地时底下是一片接近纯白的冰盖，
-   投影再重也救不回来 —— 实测"寰宇图志"会被雪地吃掉。
-   这层只负责把底衬压暗，不遮挡画面、不参与点击。 */
-#topbar::before{
-  content:"";position:absolute;left:0;right:0;top:0;height:96px;pointer-events:none;
-  background:linear-gradient(180deg,rgba(2,4,10,.66),rgba(2,4,10,.34) 48%,rgba(2,4,10,0));
-}
+#topbar > *{pointer-events:auto}
 
 .brand{display:flex;align-items:center;gap:9px;flex:0 0 auto}
 .brand-logo{
@@ -2105,9 +2094,7 @@ body.labels-canvas .mlabel{color:transparent!important;-webkit-text-stroke:0!imp
 .aud.playing .aud-fill::after{transform:translateY(-50%) scale(1)}
 .aud-time{
   flex:0 0 auto;min-width:62px;text-align:right;
-  /* 同 .la-role：10.5px + --ink-faint 只有 3.06:1。
-     计时是播放器的核心信息（这段语音多长），不该比进度条还难看清。 */
-  font-size:10.5px;color:rgba(150,168,196,.85);
+  font-size:10.5px;color:var(--ink-faint);
   font-variant-numeric:tabular-nums;letter-spacing:.02em;
 }
 
@@ -8183,19 +8170,12 @@ body.labels-canvas .mlabel{color:transparent!important;-webkit-text-stroke:0!imp
       globe.last.x = e.clientX;
       globe.last.y = e.clientY;
       globe.moved += Math.abs(dx) + Math.abs(dy);
-      /* 0.0024 弧度/像素。球在 1440×900 下的屏幕半径约 280px，要"抓哪儿哪儿动"
-         需要 1/280 ≈ 0.0036；原来的 0.0016 只有一半，手感是"球比手慢半拍"。
-         取 0.0024（跟手约 67%，拖满 1200px 转 165°）—— 仍然翻不到背面，
-         防误触的初衷保住了。 */
-      globe.vel.x = dx * 0.0024;
-      globe.vel.y = dy * 0.0024;
+      // 0.0016 弧度/像素：拖满 1200px 约转 110°，手一抖不会转到背面
+      globe.vel.x = dx * 0.0016;
+      globe.vel.y = dy * 0.0016;
       globe.spin.rotation.y += globe.vel.x;
-      /* 倾角软限位：过 68° 后按剩余角度比例吃掉位移。
-         原来直接 clamp(±78°) 是硬停，快速上下拖会"撞墙"一样顿一下。 */
-      var lim = 78 * D2R, soft = 68 * D2R, tiltNow = globe.tilt.rotation.x;
-      if (tiltNow > soft) globe.vel.y *= Math.max(0, (lim - tiltNow) / (lim - soft));
-      else if (tiltNow < -soft) globe.vel.y *= Math.max(0, (lim + tiltNow) / (lim - soft));
       globe.tilt.rotation.x += globe.vel.y;
+      var lim = 78 * D2R;
       globe.tilt.rotation.x = Math.max(-lim, Math.min(lim, globe.tilt.rotation.x));
     }
 
@@ -8645,11 +8625,7 @@ body.labels-canvas .mlabel{color:transparent!important;-webkit-text-stroke:0!imp
     /* 双击复位：不再占一个按钮。双击同时会给两次 click，
        所以 click 里用 e.detail > 1 忽略掉第二次，避免顺手打开档案。 */
     cv.addEventListener('dblclick', function () {
-      /* 双击只做"镜头退回全球"，不动面板。
-         原来这里第一句是 closePanel()：面板开着时双击想凑近看细节，
-         结果档案卡被关掉 —— 想看清楚反而丢了上下文。
-         关闭档案走 × 或 Esc（Esc 已经绑在 closePanel 上）。 */
-      if (detail.classList.contains('open')) { flyOut(); return; }
+      closePanel();
       setActive(null);
       flyOut();
     });
@@ -8804,9 +8780,7 @@ body.labels-canvas .mlabel{color:transparent!important;-webkit-text-stroke:0!imp
         spin.rotation.y += spd * dtf;
       }
       if (!globe.dragging && Math.abs(globe.vel.x) + Math.abs(globe.vel.y) > 0.0002) {
-        /* 0.955：半衰期 15 帧（≈250ms），从甩出去到收住约 1.8 秒。
-           原来是 0.93（半衰期 160ms），松手几乎立刻停，拖拽的势能全白费。 */
-        var decay = Math.pow(0.955, dtf);
+        var decay = Math.pow(0.93, dtf);
         globe.vel.x *= decay;
         globe.vel.y *= decay;
         spin.rotation.y += globe.vel.x * dtf;
